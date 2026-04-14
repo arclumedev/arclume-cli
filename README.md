@@ -215,3 +215,114 @@ arclume context generate --spec-delta
 ```bash
 arclume doctor
 ```
+
+## Development
+
+Want to hack on the CLI itself — fix a bug, add a command, tune a scaffolder? Here's how to run it locally against your own repos.
+
+### Prerequisites
+
+- Node 24 (the repo pins this via `.nvmrc`; `engines.node` is `>=22`)
+- npm
+
+If you use `nvm`, `fnm`, or `volta`, run `nvm use` (or the equivalent) in the CLI repo to pick up the pinned version.
+
+### Clone and install
+
+```bash
+git clone https://github.com/arclume/arclume-cli.git
+cd arclume-cli
+nvm use            # or: fnm use
+npm install
+```
+
+### Scripts
+
+| Command | What it does |
+|---------|--------------|
+| `npm run dev -- <args>` | Run the CLI once via `tsx` with no build step (e.g. `npm run dev -- init --dry-run`) |
+| `npm run build` | Produce `dist/cli.js` (ESM, with shebang) via `tsup` |
+| `npm run typecheck` | `tsc --noEmit` — strict TypeScript check |
+| `npm run test:manifest` | Run the manifest loader unit tests |
+
+### Run it against a real repo
+
+There are two ways to point a global `arclume` command at your working copy.
+
+**A. Snapshot link (simplest).** Build once, link, then re-build whenever you want to pick up changes:
+
+```bash
+npm run build
+npm link              # creates a global `arclume` that symlinks to ./dist/cli.js
+cd /path/to/some-repo
+arclume init --dry-run
+```
+
+When you edit CLI source, re-run `npm run build`. The link stays valid.
+
+**B. Live watch (iteration-friendly).** Keep `tsup` rebuilding in the background so every save propagates to the linked binary:
+
+```bash
+# terminal 1 — inside arclume-cli
+npx tsup src/cli.ts --format esm --watch
+
+# terminal 2 — one-time link
+cd /path/to/arclume-cli && npm link
+cd /path/to/some-repo
+arclume init
+```
+
+Rebuilds finish in well under a second. In VS Code, the `tsup: watch` task (see `.vscode/tasks.json`) runs this for you — **Terminal → Run Task → tsup: watch**.
+
+**Unlink when done:**
+
+```bash
+npm unlink -g arclume
+```
+
+### Debugging in VS Code
+
+The repo ships with `.vscode/launch.json` preconfigured. Open the **Run and Debug** panel (⌘⇧D) and pick a config:
+
+| Config | Purpose |
+|--------|---------|
+| `Debug: arclume (prompt for args)` | Runs any subcommand in any directory — VS Code prompts for both |
+| `Debug: arclume init --dry-run (in workspace)` | Quick sanity check inside the CLI repo itself |
+| `Debug: arclume init --dry-run (target dir)` | Prompts for a target repo and runs `init --dry-run` there |
+| `Debug: manifest tests` | Runs `src/lib/manifest.test.ts` — good for iterating on validator logic |
+
+All configs use `tsx` with source maps, so breakpoints work directly on TypeScript source (no build step needed to debug).
+
+### Contributor workflow
+
+1. **Branch** off `main`. Feature branches like `feat/add-spec-export` or `fix/init-idempotent-overview`.
+2. **Run `npm run typecheck`** before pushing. CI will reject type errors.
+3. **If you touched `src/lib/`** — run `npm run test:manifest` and, where applicable, add assertions for new behavior.
+4. **Test the command end-to-end** with the live watch setup against a throwaway directory (`mkdir /tmp/foo && cd /tmp/foo && git init && arclume <your-command>`). Don't just rely on typecheck.
+5. **Update specs.** If your change adds or modifies a command, propose an update to `openspec/specs/OVERVIEW.md` or add an `openspec/changes/<change-name>/` bundle (proposal + tasks + design + spec delta). Look at existing changes under `openspec/changes/` for the pattern.
+6. **Open a PR** with a short description of what changed and why.
+
+### Project layout
+
+```
+src/
+  cli.ts                  ← Commander entry point; wires every subcommand
+  commands/               ← one file per top-level command
+    init.ts, doctor.ts, workflow.ts, auth.ts, ...
+  lib/                    ← shared building blocks
+    scaffold.ts           ← pure template functions (no I/O)
+    harness-scaffold.ts   ← idempotent file writers for harness subsystems
+    manifest.ts           ← arclume.yaml loader, validator, error types
+    config.ts             ← .arclume/config.json (indexer config)
+    detect.ts             ← stack detection
+    ignore-file.ts        ← .arclumeignore helpers
+docs/                     ← user-facing docs (auth.md, harness-manifest.md, roadmap.md)
+openspec/specs/           ← authoritative command/feature specs
+openspec/changes/         ← in-flight changes with proposal/design/tasks/spec
+```
+
+Keep `src/lib/*` pure where you can (no side effects, no process.exit) — `src/commands/*` is where the orchestration and exit codes live.
+
+### Dependencies
+
+The CLI is deliberately thin: `commander`, `chalk`, `@inquirer/prompts`, and `yaml` — plus `tsx`/`tsup`/`typescript` for the build. Please don't add new runtime dependencies without a clear justification in the PR description.

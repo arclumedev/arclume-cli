@@ -1,0 +1,92 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug: arclume (pick command)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npx tsx ${workspaceFolder}/src/cli.ts ${input:cliCommand}",
+      "cwd": "${input:targetDir}"
+    },
+    {
+      "name": "Debug: arclume init --dry-run (in workspace)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
+      "program": "${workspaceFolder}/src/cli.ts",
+      "args": ["init", "--dry-run"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "sourceMaps": true
+    },
+    {
+      "name": "Debug: arclume init --dry-run (target dir)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
+      "program": "${workspaceFolder}/src/cli.ts",
+      "args": ["init", "--dry-run"],
+      "cwd": "${input:targetDir}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "sourceMaps": true
+    },
+    {
+      "name": "Debug: manifest tests",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/tsx",
+      "program": "${workspaceFolder}/src/lib/manifest.test.ts",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "sourceMaps": true
+    },
+    {
+      "name": "Local install: build + link",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run build && npm link && echo '\\n✓ arclume is now available globally. Test with: arclume --help'",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Local install: live watch (rebuild on save)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm link >/dev/null 2>&1 || true; echo '→ Starting tsup in watch mode. Leave this terminal open while you develop.'; npx tsup src/cli.ts --format esm --watch",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Local install: unlink",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm unlink -g arclume && echo '\\n✓ arclume unlinked globally.'",
+      "cwd": "${workspaceFolder}"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "cliCommand",
+      "type": "pickString",
+      "description": "Which arclume subcommand?",
+      "options": [
+        "--help",
+        "doctor",
+        "context validate",
+        "context diff",
+        "ignore list",
+        "index status",
+        "workflow list",
+        "auth status"
+      ],
+      "default": "--help"
+    },
+    {
+      "id": "targetDir",
+      "type": "promptString",
+      "description": "Directory to run the CLI in (the target repo)",
+      "default": "${workspaceFolder}"
+    }
+  ]
+}

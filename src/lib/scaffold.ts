@@ -136,7 +136,7 @@ export function manifestTemplate(opts: ManifestTemplateOpts): string {
 
   const header =
     "# Arclume harness manifest — edit to wire up subsystems.\n" +
-    "# Docs: https://arclume.dev/docs/harness/manifest\n\n";
+    "# Reference: docs/harness-manifest.md (or https://arclume.dev/docs/harness/manifest)\n\n";
   return header + YAML.stringify(manifest);
 }
 

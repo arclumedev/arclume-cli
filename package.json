@@ -12,7 +12,8 @@
   "scripts": {
     "build": "tsup src/cli.ts --format esm --clean",
     "dev": "tsx src/cli.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:manifest": "tsx src/lib/manifest.test.ts"
   },
   "dependencies": {
     "@inquirer/prompts": "^7.0.0",

@@ -1,5 +1,7 @@
+import YAML from "yaml";
 import type { ArclumeConfig } from "./config.js";
 import type { PatternGroup } from "./ignore-file.js";
+import type { HarnessManifest, TicketsProvider } from "./manifest.js";
 
 export interface ConfigTemplateOpts {
   languages: string[];
@@ -89,3 +91,263 @@ export function openspecOverviewTemplate(): string {
 [Describe the major components and how they interact.]
 `;
 }
+
+// -- Harness scaffolds --
+
+export interface ManifestTemplateOpts {
+  name: string;
+  provider: TicketsProvider;
+  includeLume: boolean;
+  includeMeta: boolean;
+  includeTickets: boolean;
+  includeOpenapi: boolean;
+  includeWorkflows: boolean;
+}
+
+export function manifestTemplate(opts: ManifestTemplateOpts): string {
+  const manifest: HarnessManifest = {
+    version: "1",
+    name: opts.name,
+    context_budget: 8000,
+    auto_index: false,
+  };
+
+  if (opts.includeLume) {
+    manifest.lume = {
+      schema: ".arclume/lume/schema.yaml",
+      entities_dir: ".arclume/lume/entities",
+    };
+  }
+  if (opts.includeMeta) {
+    manifest.meta = { dir: ".arclume/meta" };
+  }
+  if (opts.includeTickets) {
+    manifest.tickets = {
+      provider: opts.provider,
+      config: ".arclume/tickets/config.yaml",
+    };
+  }
+  if (opts.includeOpenapi) {
+    manifest.openapi = { index: ".arclume/openapi/index.yaml" };
+  }
+  if (opts.includeWorkflows) {
+    manifest.workflows = { dir: ".arclume/workflows" };
+  }
+
+  const header =
+    "# Arclume harness manifest — edit to wire up subsystems.\n" +
+    "# Reference: docs/harness-manifest.md (or https://arclume.dev/docs/harness/manifest)\n\n";
+  return header + YAML.stringify(manifest);
+}
+
+export function lumeSchemaTemplate(): string {
+  return `# Lume schema — defines entity types for this repo.
+# Field syntax:
+#   name!           required string
+#   email (unique)  unique constraint
+#   status: enum[active, archived]
+#
+# Relations are typed refs to other entities.
+# Uncomment the example below to get started.
+
+# entities:
+#   Person:
+#     fields:
+#       name!: string
+#       email: { type: string, unique: true }
+#       role: { type: enum, values: [engineer, designer, pm] }
+#     relations:
+#       team: { type: Team, cardinality: one }
+#
+#   Team:
+#     fields:
+#       name!: string
+#     relations:
+#       members: { type: Person, cardinality: many }
+
+entities: {}
+`;
+}
+
+export function lumeEntitiesReadmeTemplate(): string {
+  return `# Lume Entities
+
+Each \`.lume.md\` file in this folder is one entity. Format:
+
+\`\`\`markdown
+---
+$type: Person
+name: Ada Lovelace
+email: ada@example.com
+role: engineer
+team:
+  ref: teams/platform
+---
+
+Free-form markdown body describing the entity.
+Included in the index as the entity's \`body\` field.
+\`\`\`
+
+Validate with \`arclume lume validate\`. Build the graph with \`arclume lume index\`.
+`;
+}
+
+export function principlesTemplate(): string {
+  return `# Principles
+
+> Operating rules for AI tools working in this repo. Keep this short and
+> concrete — one declarative rule per bullet.
+
+## Operating Rules
+
+- [e.g. "Never modify files under \`generated/\` directly"]
+
+## Decision Rules
+
+- [e.g. "Prefer composition over inheritance for domain types"]
+
+## Domain Constraints
+
+- [e.g. "All monetary values are stored as integer cents, never floats"]
+`;
+}
+
+export function metaChangelogTemplate(): string {
+  return `# Changelog
+
+> Decisions and rationale that future sessions should know about.
+> Append entries with \`arclume meta log "message"\`.
+`;
+}
+
+export function ticketsConfigTemplate(provider: TicketsProvider): string {
+  const header =
+    `# Tickets config — provider: ${provider}\n` +
+    "# Secrets (API tokens) are read from env vars, never committed.\n\n";
+
+  const common = {
+    default_labels: [] as string[],
+    status_map: { todo: "todo", in_progress: "in_progress", done: "done" },
+    severity_rules: [] as string[],
+  };
+
+  let body: Record<string, unknown>;
+  switch (provider) {
+    case "linear":
+      body = {
+        provider: "linear",
+        team: "",
+        workspace: "",
+        api_token_env: "LINEAR_API_TOKEN",
+        ...common,
+      };
+      break;
+    case "jira":
+      body = {
+        provider: "jira",
+        domain: "",
+        project_key: "",
+        email: "",
+        api_token_env: "JIRA_API_TOKEN",
+        ...common,
+      };
+      break;
+    case "github":
+      body = {
+        provider: "github",
+        repo: "",
+        api_token_env: "GITHUB_TOKEN",
+        ...common,
+      };
+      break;
+  }
+
+  return header + YAML.stringify(body);
+}
+
+export function ticketBugTemplate(): string {
+  return `---
+$type: Bug
+title: ""
+severity: medium
+labels: []
+---
+
+## What happened
+
+## Expected behavior
+
+## Reproduction steps
+
+1.
+2.
+3.
+`;
+}
+
+export function ticketFeatureTemplate(): string {
+  return `---
+$type: Feature
+title: ""
+labels: []
+---
+
+## Summary
+
+## Motivation
+
+## Acceptance criteria
+
+- [ ]
+`;
+}
+
+export function openapiIndexTemplate(name: string): string {
+  const spec = {
+    openapi: "3.1.0",
+    info: {
+      title: name,
+      version: "0.1.0",
+      description: "API specification — paths live in ./paths/, referenced via $ref.",
+    },
+    servers: [{ url: "https://api.example.com", description: "Production" }],
+    paths: {} as Record<string, unknown>,
+    components: { schemas: {} as Record<string, unknown> },
+  };
+  const header =
+    "# OpenAPI 3.1 entry point. Add paths as separate files under ./paths/\n" +
+    "# and reference them here, e.g.:\n" +
+    "#   /users:\n" +
+    "#     $ref: ./paths/users.yaml\n\n";
+  return header + YAML.stringify(spec);
+}
+
+export function workflowExampleTemplate(): string {
+  return `# Example workflow — composable agentic sequence.
+# Run with: arclume run example
+
+name: example
+description: Minimal three-step workflow demonstrating shell, llm, and lume steps.
+
+steps:
+  - id: list_files
+    type: shell
+    run: git ls-files | head -20
+
+  - id: summarize
+    type: llm
+    prompt: |
+      Summarize the file list below in one sentence.
+      Files:
+      {{ steps.list_files.output }}
+
+  - id: record
+    type: lume
+    action: upsert
+    entity:
+      $type: Note
+      title: "Summary {{ now }}"
+      body: "{{ steps.summarize.output }}"
+`;
+}
+

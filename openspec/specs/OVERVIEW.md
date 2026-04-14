@@ -21,6 +21,10 @@ Distributed via npm (`npm install -g arclume`), Homebrew, and pip.
 | `arclume index --watch` | Watches for file changes and triggers incremental re-index |
 | `arclume index status` | Shows current index status |
 | `arclume doctor` | Diagnoses indexing health issues with actionable suggestions |
+| `arclume workflow list` | Lists all workflows with name, status, tag, and last run |
+| `arclume workflow describe <name>` | Shows full workflow config, node graph, and schemas |
+| `arclume workflow run <name>` | Executes a workflow with typed parameters and streaming output |
+| `arclume workflow export <name>` | Exports a workflow definition as markdown |
 
 ## Generated Artifacts
 
